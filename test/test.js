@@ -1,24 +1,22 @@
+/* eslint prefer-template:0*/
+
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var expect = require('expect.js');
-var rimraf = require('rimraf');
-var mkdirp = require('mkdirp');
-var hasEmptyArgumentBug = require('../lib/util/hasEmptyArgumentBug');
-var spawn = require('../');
-var buffered = require('./util/buffered');
+const fs = require('fs');
+const path = require('path');
+const expect = require('expect.js');
+const rimraf = require('rimraf');
+const mkdirp = require('mkdirp');
+const run = require('./util/run');
 
-var isWin = process.platform === 'win32';
+const isWin = process.platform === 'win32';
 
-describe('cross-spawn', function () {
-    var methods = ['spawn', 'sync'];
+describe('cross-spawn', () => {
+    run.methods.forEach((method) => {
+        describe(method, () => {
+            const originalPath = process.env.PATH;
 
-    methods.forEach(function (method) {
-        describe(method, function () {
-            var originalPath = process.env.PATH;
-
-            before(function () {
+            before(() => {
                 mkdirp.sync(__dirname + '/tmp');
             });
 
@@ -26,18 +24,18 @@ describe('cross-spawn', function () {
                 // Give it some time, RIMRAF was giving problems on windows
                 this.timeout(10000);
 
-                rimraf(__dirname + '/tmp', function () {
+                rimraf(__dirname + '/tmp', () => {
                     // Ignore errors, RIMRAF was giving problems on windows
                     next(null);
                 });
             });
 
-            afterEach(function () {
+            afterEach(() => {
                 process.env.PATH = originalPath;
             });
 
-            it('should support shebang in executables with /usr/bin/env', function (next) {
-                buffered(method, __dirname + '/fixtures/shebang', function (err, data, code) {
+            it('should support shebang in executables with /usr/bin/env', (next) => {
+                run(method, __dirname + '/fixtures/shebang', (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('shebang works!');
@@ -45,7 +43,7 @@ describe('cross-spawn', function () {
                     // Test if the actual shebang file is resolved against the PATH
                     process.env.PATH = path.normalize(__dirname + '/fixtures/') + path.delimiter + process.env.PATH;
 
-                    buffered(method, 'shebang', function (err, data, code) {
+                    run(method, 'shebang', (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
                         expect(data).to.equal('shebang works!');
@@ -55,14 +53,14 @@ describe('cross-spawn', function () {
                 });
             });
 
-            it('should support shebang in executables with relative path', function (next) {
-                var executable = './' + path.relative(process.cwd(), __dirname + '/fixtures/shebang');
+            it('should support shebang in executables with relative path', (next) => {
+                const executable = './' + path.relative(process.cwd(), __dirname + '/fixtures/shebang');
 
                 fs.writeFileSync(__dirname + '/tmp/shebang', '#!/usr/bin/env node\n\nprocess.stdout.write(\'yeah\');',
                     { mode: parseInt('0777', 8) });
                 process.env.PATH = path.normalize(__dirname + '/tmp/') + path.delimiter + process.env.PATH;
 
-                buffered(method, executable, function (err, data, code) {
+                run(method, executable, (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('shebang works!');
@@ -71,14 +69,15 @@ describe('cross-spawn', function () {
                 });
             });
 
-            it('should support shebang in executables with relative path that starts with `..`', function (next) {
-                var executable = '../' + path.basename(process.cwd()) + '/' + path.relative(process.cwd(), __dirname + '/fixtures/shebang');
+            it('should support shebang in executables with relative path that starts with `..`', (next) => {
+                const executable = '../' + path.basename(process.cwd()) +
+                    '/' + path.relative(process.cwd(), __dirname + '/fixtures/shebang');
 
                 fs.writeFileSync(__dirname + '/tmp/shebang', '#!/usr/bin/env node\n\nprocess.stdout.write(\'yeah\');',
                     { mode: parseInt('0777', 8) });
                 process.env.PATH = path.normalize(__dirname + '/tmp/') + path.delimiter + process.env.PATH;
 
-                buffered(method, executable, function (err, data, code) {
+                run(method, executable, (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('shebang works!');
@@ -87,12 +86,12 @@ describe('cross-spawn', function () {
                 });
             });
 
-            it('should support shebang in executables with extensions', function (next) {
+            it('should support shebang in executables with extensions', (next) => {
                 fs.writeFileSync(__dirname + '/tmp/shebang_' + method + '.js', '#!/usr/bin/env node\n\nprocess.stdout.write(\'shebang with \
 extension\');', { mode: parseInt('0777', 8) });
                 process.env.PATH = path.normalize(__dirname + '/tmp/') + path.delimiter + process.env.PATH;
 
-                buffered(method, __dirname + '/tmp/shebang_' + method + '.js', function (err, data, code) {
+                run(method, __dirname + '/tmp/shebang_' + method + '.js', (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('shebang with extension');
@@ -100,7 +99,7 @@ extension\');', { mode: parseInt('0777', 8) });
                     // Test if the actual shebang file is resolved against the PATH
                     process.env.PATH = path.normalize(__dirname + '/fixtures/') + path.delimiter + process.env.PATH;
 
-                    buffered(method, 'shebang_' + method + '.js', function (err, data, code) {
+                    run(method, 'shebang_' + method + '.js', (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
                         expect(data).to.equal('shebang with extension');
@@ -110,8 +109,8 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should expand using PATHEXT properly', function (next) {
-                buffered(method, __dirname + '/fixtures/foo', function (err, data, code) {
+            it('should expand using PATHEXT properly', (next) => {
+                run(method, __dirname + '/fixtures/foo', (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data.trim()).to.equal('foo');
@@ -120,8 +119,8 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle commands with spaces', function (next) {
-                buffered(method, __dirname + '/fixtures/bar space', function (err, data, code) {
+            it('should handle commands with spaces', (next) => {
+                run(method, __dirname + '/fixtures/bar space', ['foo bar'], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data.trim()).to.equal('bar');
@@ -130,8 +129,8 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle commands with special shell chars', function (next) {
-                buffered(method, __dirname + '/fixtures/()%!^&;, ', function (err, data, code) {
+            it('should handle commands with special shell chars', (next) => {
+                run(method, __dirname + '/fixtures/()%!^&;, ', (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data.trim()).to.equal('special');
@@ -140,12 +139,12 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle arguments with quotes', function (next) {
-                buffered(method, 'node', [
+            it('should handle arguments with quotes', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     '"foo"',
                     'foo"bar"foo',
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('"foo"\nfoo"bar"foo');
@@ -154,36 +153,26 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle empty arguments', function (next) {
-                buffered(method, 'node', [
+            it('should handle empty arguments', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     'foo',
                     '',
                     'bar',
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('foo\n\nbar');
 
-                    buffered(method, 'echo', [
-                        'foo',
-                        '',
-                        'bar',
-                    ], function (err, data, code) {
-                        expect(err).to.not.be.ok();
-                        expect(code).to.be(0);
-                        expect(data.trim()).to.equal('foo  bar');
-
-                        next();
-                    });
+                    next();
                 });
             });
 
-            it('should handle non-string arguments', function (next) {
-                buffered(method, 'node', [
+            it('should handle non-string arguments', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     1234,
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('1234');
@@ -192,12 +181,12 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle arguments with spaces', function (next) {
-                buffered(method, 'node', [
+            it('should handle arguments with spaces', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     'I am',
                     'André Cruz',
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('I am\nAndré Cruz');
@@ -206,13 +195,13 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle arguments with \\"', function (next) {
-                buffered(method, 'node', [
+            it('should handle arguments with \\"', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     'foo',
                     '\\"',
                     'bar',
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('foo\n\\"\nbar');
@@ -221,13 +210,13 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle arguments that end with \\', function (next) {
-                buffered(method, 'node', [
+            it('should handle arguments that end with \\', (next) => {
+                run(method, 'node', [
                     __dirname + '/fixtures/echo',
                     'foo',
                     'bar\\',
                     'baz',
-                ], function (err, data, code) {
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data).to.equal('foo\nbar\\\nbaz');
@@ -236,11 +225,12 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should handle arguments that contain shell special chars', function (next) {
-                buffered(method, 'node', [
-                    __dirname + '/fixtures/echo',
+            it('should handle arguments that contain shell special chars', (next) => {
+                const args = [
                     'foo',
                     '()',
+                    'foo',
+                    '[]',
                     'foo',
                     '%!',
                     'foo',
@@ -252,59 +242,68 @@ extension\');', { mode: parseInt('0777', 8) });
                     'foo',
                     ', ',
                     'foo',
-                ], function (err, data, code) {
+                    '!=',
+                    'foo',
+                    '\\*',
+                    'foo',
+                    '"f"',
+                    'foo',
+                    '?.',
+                    'foo',
+                    '=`',
+                    'foo',
+                    '\'',
+                    'foo',
+                ];
+
+                run(method, 'node', [__dirname + '/fixtures/echo'].concat(args), (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
-                    expect(data).to.equal('foo\n()\nfoo\n%!\nfoo\n^<\nfoo\n>&\nfoo\n|;\nfoo\n, \nfoo');
+                    expect(data).to.equal(args.join('\n'));
 
                     next();
                 });
             });
 
-            it('should handle special arguments when using echo', function (next) {
-                buffered(method, 'echo', ['foo\\"foo\\foo&bar"foo\'bar'], function (err, data, code) {
+            it('should handle escaping of quotes followed by special meta chars', (next) => {
+                const arg = '"(foo|bar>baz|foz)"';
+
+                run(method, 'node', [
+                    __dirname + '/fixtures/echo',
+                    arg,
+                ], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
-                    expect(data.trim()).to.equal('foo\\"foo\\foo&bar"foo\'bar');
+                    expect(data).to.equal(arg);
 
-                    buffered(method, 'echo', [
-                        'foo',
-                        '()',
-                        'foo',
-                        '%!',
-                        'foo',
-                        '^<',
-                        'foo',
-                        '>&',
-                        'foo',
-                        '|;',
-                        'foo',
-                        ', ',
-                        'foo',
-                    ], function (err, data, code) {
-                        expect(err).to.not.be.ok();
-                        expect(code).to.be(0);
-                        expect(data.trim()).to.equal('foo () foo %! foo ^< foo >& foo |; foo ,  foo');
-
-                        next();
-                    });
+                    next();
                 });
             });
 
-            it('should handle optional args correctly', function (next) {
-                buffered(method, __dirname + '/fixtures/foo', function (err, data, code) {
+            it('should handle commands with names of environment variables', (next) => {
+                run(method, __dirname + '/fixtures/%CD%', (err, data, code) => {
+                    expect(err).to.not.be.ok();
+                    expect(code).to.be(0);
+                    expect(data.trim()).to.equal('special');
+
+                    next();
+                });
+            });
+
+            it('should handle optional args correctly', (next) => {
+                run(method, __dirname + '/fixtures/foo', (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
 
-                    buffered(method, __dirname + '/fixtures/foo', {
+                    run(method, __dirname + '/fixtures/foo', {
                         stdio: ['pipe', 'pipe', 'pipe'],
-                    }, function (err, data, code) {
+                    }, (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
 
-                        buffered(method, __dirname + '/fixtures/foo', null, {
+                        run(method, __dirname + '/fixtures/foo', null, {
                             stdio: ['pipe', 'pipe', 'pipe'],
-                        }, function (err, data, code) {
+                        }, (err, data, code) => {
                             expect(err).to.not.be.ok();
                             expect(code).to.be(0);
 
@@ -314,11 +313,11 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should not mutate args nor options', function (next) {
-                var args = [];
-                var options = {};
+            it('should not mutate args nor options', (next) => {
+                const args = [];
+                const options = {};
 
-                buffered(method, __dirname + '/fixtures/foo', function (err, data, code) {
+                run(method, __dirname + '/fixtures/foo', options, (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
 
@@ -329,8 +328,8 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should give correct exit code', function (next) {
-                buffered(method, 'node', [__dirname + '/fixtures/exit'], function (err, data, code) {
+            it('should give correct exit code', (next) => {
+                run(method, 'node', [__dirname + '/fixtures/exit'], (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(25);
 
@@ -338,8 +337,8 @@ extension\');', { mode: parseInt('0777', 8) });
                 });
             });
 
-            it('should work with a relative command', function (next) {
-                buffered(method, path.relative(process.cwd(), __dirname + '/fixtures/foo'), function (err, data, code) {
+            it('should work with a relative command', (next) => {
+                run(method, path.relative(process.cwd(), __dirname + '/fixtures/foo'), (err, data, code) => {
                     expect(err).to.not.be.ok();
                     expect(code).to.be(0);
                     expect(data.trim()).to.equal('foo');
@@ -348,7 +347,7 @@ extension\');', { mode: parseInt('0777', 8) });
                         return next();
                     }
 
-                    buffered(method, path.relative(process.cwd(), __dirname + '/fixtures/foo.bat'), function (err, data, code) {
+                    run(method, path.relative(process.cwd(), __dirname + '/fixtures/foo.bat'), (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
                         expect(data.trim()).to.equal('foo');
@@ -359,13 +358,12 @@ extension\');', { mode: parseInt('0777', 8) });
             });
 
             it('should emit "error" and "close" if command does not exist', function (next) {
-                var errors;
-                var spawned = spawn[method]('somecommandthatwillneverexist');
+                const spawned = run(method, 'somecommandthatwillneverexist');
 
                 this.timeout(5000);
 
                 function assertError(err) {
-                    var syscall = method === 'sync' ? 'spawnSync' : 'spawn';
+                    const syscall = run.isMethodSync(method) ? 'spawnSync' : 'spawn';
 
                     expect(err).to.be.an(Error);
                     expect(err.message).to.contain(syscall);
@@ -377,152 +375,125 @@ extension\');', { mode: parseInt('0777', 8) });
                     expect(err.syscall).to.not.contain('undefined');
                 }
 
-                if (method === 'spawn') {
-                    errors = [];
-
-                    spawned
-                    .on('error', function (err) {
-                        errors.push(err);
-                    })
-                    .on('exit', function () {
-                        spawned.removeAllListeners();
-                        next(new Error('Should not emit exit'));
-                    })
-                    .on('close', function (code, signal) {
-                        expect(code).to.not.be(0);
-                        expect(signal).to.be(null);
-
-                        setTimeout(function () {
-                            expect(errors).to.have.length(1);
-                            assertError(errors[0]);
-
-                            next();
-                        }, 1000);
-                    });
-                } else {
+                if (run.isMethodSync(method)) {
                     assertError(spawned.error);
-                    next();
+                    return next();
                 }
+
+                const errors = [];
+
+                spawned
+                .on('error', (err) => {
+                    errors.push(err);
+                })
+                .on('exit', () => {
+                    spawned.removeAllListeners();
+                    next(new Error('Should not emit exit'));
+                })
+                .on('close', (code, signal) => {
+                    expect(code).to.not.be(0);
+                    expect(signal).to.be(null);
+
+                    setTimeout(() => {
+                        expect(errors).to.have.length(1);
+                        assertError(errors[0]);
+
+                        next();
+                    }, 1000);
+                });
             });
 
             it('should NOT emit "error" if shebang command does not exist', function (next) {
-                var spawned = spawn[method](__dirname + '/fixtures/shebang_enoent');
-                var exited;
-                var timeout;
+                const spawned = run(method, __dirname + '/fixtures/shebang_enoent');
+                let exited;
+                let timeout;
 
                 this.timeout(5000);
 
-                if (method === 'spawn') {
-                    spawned
-                    .on('error', function () {
-                        spawned.removeAllListeners();
-                        clearTimeout(timeout);
-                        next(new Error('Should not emit error'));
-                    })
-                    .on('exit', function () {
-                        exited = true;
-                    })
-                    .on('close', function (code, signal) {
-                        expect(code).to.not.be(0);
-                        expect(signal).to.be(null);
-                        expect(exited).to.be(true);
-
-                        timeout = setTimeout(next, 1000);
-                    });
-                } else {
+                if (run.isMethodSync(method)) {
                     expect(spawned.error).to.not.be.ok();
-                    next();
+                    return next();
                 }
+
+                spawned
+                .on('error', () => {
+                    spawned.removeAllListeners();
+                    clearTimeout(timeout);
+                    next(new Error('Should not emit error'));
+                })
+                .on('exit', () => {
+                    exited = true;
+                })
+                .on('close', (code, signal) => {
+                    expect(code).to.not.be(0);
+                    expect(signal).to.be(null);
+                    expect(exited).to.be(true);
+
+                    timeout = setTimeout(next, 1000);
+                });
             });
 
             it('should NOT emit "error" if the command actual exists but exited with 1', function (next) {
-                var spawned = spawn[method](__dirname + '/fixtures/exit1');
-                var exited;
-                var timeout;
+                const spawned = run(method, __dirname + '/fixtures/exit1');
+                let exited;
+                let timeout;
 
                 this.timeout(5000);
 
-                if (method === 'spawn') {
-                    spawned
-                    .on('error', function () {
-                        spawned.removeAllListeners();
-                        clearTimeout(timeout);
-                        next(new Error('Should not emit error'));
-                    })
-                    .on('exit', function () {
-                        exited = true;
-                    })
-                    .on('close', function (code, signal) {
-                        expect(code).to.not.be(0);
-                        expect(signal).to.be(null);
-                        expect(exited).to.be(true);
-
-                        timeout = setTimeout(next, 1000);
-                    });
-                } else {
+                if (run.isMethodSync(method)) {
                     expect(spawned.error).to.not.be.ok();
-                    next();
+                    return next();
                 }
+
+                spawned
+                .on('error', () => {
+                    spawned.removeAllListeners();
+                    clearTimeout(timeout);
+                    next(new Error('Should not emit error'));
+                })
+                .on('exit', () => {
+                    exited = true;
+                })
+                .on('close', (code, signal) => {
+                    expect(code).to.not.be(0);
+                    expect(signal).to.be(null);
+                    expect(exited).to.be(true);
+
+                    timeout = setTimeout(next, 1000);
+                });
             });
 
             if (isWin) {
-                it('should use nodejs\' spawn when option.shell is specified', function (next) {
-                    buffered(method, 'echo', ['%RANDOM%'], { shell: true }, function (err, data, code) {
+                it('should use nodejs\' spawn when options.shell is specified', (next) => {
+                    run(method, 'echo', ['%RANDOM%'], { shell: true }, (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
                         expect(data.trim()).to.match(/\d+/);
 
-                        buffered(method, 'echo', ['%RANDOM%'], { shell: false }, function (err, data) {
-                            // In some windows versions, the echo exists outside the shell as echo.exe so we must account for that here
-                            if (err) {
-                                expect(err).to.be.an(Error);
-                                expect(err.message).to.contain('ENOENT');
-                            } else {
-                                expect(data.trim()).to.equal('%RANDOM%');
-                            }
-
-                            next();
-                        });
+                        next();
                     });
                 });
             } else {
-                it('should use nodejs\' spawn when option.shell is specified', function (next) {
-                    buffered(method, 'echo', ['hello &&', 'echo there'], { shell: true }, function (err, data, code) {
+                it('should use nodejs\' spawn when options.shell is specified', (next) => {
+                    run(method, 'echo', ['hello &&', 'echo there'], { shell: true }, (err, data, code) => {
                         expect(err).to.not.be.ok();
                         expect(code).to.be(0);
                         expect(data.trim()).to.equal('hello\nthere');
 
-                        buffered(method, 'echo', ['hello &&', 'echo there'], { shell: false }, function (err, data) {
-                            expect(err).to.not.be.ok();
-                            expect(code).to.be(0);
-                            expect(data.trim()).to.equal('hello && echo there');
-
-                            next();
-                        });
+                        next();
                     });
                 });
             }
 
-            if (isWin) {
-                if (hasEmptyArgumentBug) {
-                    it('should spawn a shell for a .exe on old Node', function (next) {
-                        buffered(method, __dirname + '/fixtures/win-ppid.js', function (err, data, code) {
-                            expect(err).to.not.be.ok();
-                            expect(code).to.be(0);
-                            expect(data.trim()).to.not.equal('' + process.pid);
-                            next();
-                        });
+            if (isWin && !run.isForceShell(method)) {
+                it('should NOT spawn a shell for a .exe', (next) => {
+                    run(method, __dirname + '/fixtures/win-ppid.js', (err, data, code) => {
+                        expect(err).to.not.be.ok();
+                        expect(code).to.be(0);
+                        expect(data.trim()).to.equal('' + process.pid);
+                        next();
                     });
-                } else {
-                    it('should NOT spawn a shell for a .exe', function (next) {
-                        buffered(method, __dirname + '/fixtures/win-ppid.js', function (err, data, code) {
-                            expect(err).to.not.be.ok();
-                            expect(code).to.be(0);
-                            expect(data.trim()).to.equal('' + process.pid);
-                            next();
-                        });
-                    });
-                }
+                });
             }
         });
     });

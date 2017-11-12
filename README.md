@@ -23,10 +23,6 @@ A cross platform solution to node's spawn and spawnSync.
 
 `$ npm install cross-spawn`
 
-If you are using `spawnSync` on node 0.10 or older, you will also need to install `spawn-sync`:
-
-`$ npm install spawn-sync`
-
 
 ## Why
 
@@ -35,7 +31,7 @@ Node has issues when using spawn on Windows:
 - It ignores [PATHEXT](https://github.com/joyent/node/issues/2318)
 - It does not support [shebangs](http://pt.wikipedia.org/wiki/Shebang)
 - No `options.shell` support on node `<v4.8`
-- It does not allow you to run `del` or `dir`
+- Has problems running commands with [spaces](https://github.com/nodejs/node/issues/7367)
 
 All these issues are handled correctly by `cross-spawn`.
 There are some known modules, such as [win-spawn](https://github.com/ForbesLindesay/win-spawn), that try to solve this but they are either broken or provide faulty escaping of shell arguments.
@@ -59,18 +55,23 @@ var results = spawn.sync('npm', ['list', '-g', '-depth', '0'], { stdio: 'inherit
 
 ## Caveats
 
-#### `options.shell` as an alternative to `cross-spawn`
+### Using `options.shell` as an alternative to `cross-spawn`
 
 Starting from node `v4.8`, `spawn` has a `shell` option that allows you run commands from within a shell. This new option solves most of the problems that `cross-spawn` attempts to solve, but:
 
 - It's not supported in node `<v4.8`
-- It has no support for shebangs on Windows
 - You must manually escape the command and arguments which is very error prone, specially when passing user input
 
 If you are using the `shell` option to spawn a command in a cross platform way, consider using `cross-spawn` instead. You have been warned.
 
+### `options.shell` support
 
-#### Shebangs
+While `cross-spawn` adds support for `options.shell` in node `<v4.8`, all of its enhancements are disabled.
+
+This mimics the Node.js behavior. More specifically, the command and its arguments will not be automatically escaped nor shebang support will be offered. This is by design because if you are using `options.shell` you are probably targeting a specific platform anyway and you don't want things to get into your way.
+
+
+### Shebangs support
 
 While `cross-spawn` handles shebangs on Windows, its support is limited: e.g.: it doesn't handle arguments after the path, e.g.: `#!/bin/bash -e`.
 
